@@ -237,7 +237,7 @@ learning-rate = 0.01
 default = &quot;local-simulation&quot;
 
 [tool.flwr.federations.local-simulation]
-options.num-supernodes = 10</code></pre><pre><code class="language-bash">flwr run .</code></pre><div class="box note"><strong>Remarque :</strong> les anciennes versions de ce TD utilisaient <code>fl.server.start_server(...)</code> et <code>python server.py</code> / <code>python client.py</code>. Cette API est dépréciée dans les versions récentes de Flower ; le mode simulation avec <code>flwr run</code> ci-dessus la remplace.</div>
+options.num-supernodes = 10</code></pre><pre><code class="language-bash">flwr run .</code></pre>
 <h3>6. Évaluation et comparaison</h3>
 <ol>
 <li>Entraînez le même modèle en <strong>mode centralisé</strong> sur l'ensemble de FashionMNIST, avec un nombre total d'époques comparable.</li>
