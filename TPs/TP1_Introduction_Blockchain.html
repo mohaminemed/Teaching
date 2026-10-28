@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TP1 : Introduction à la blockchain</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">TP1 · Blockchain</p>
+<h1>TP1 : Introduction à la blockchain</h1>
+
+<h2>Objectifs</h2>
+<ul>
+<li>Découvrir l'architecture réseau pair à pair (P2P) et la blockchain comme exemple de réseau P2P.</li>
+<li>Connaître les types de réseaux déployables avec un client blockchain (public ou privé/consortium, consensus).</li>
+<li>Connaître les moyens de se connecter à un réseau existant ou d'en déployer un (client, Docker, VM, cloud, BaaS).</li>
+<li>Déployer son propre réseau privé avec le client Hyperledger Besu.</li>
+<li>Se familiariser avec les outils de développement (smart contracts, Web3, Remix, Hardhat, Truffle).</li>
+</ul>
+<h2>Relevé des manipulations</h2>
+<p>Tenez à jour, tout au long du TP, un <strong>relevé de manipulations</strong> : un fichier texte structuré regroupant, dans l'ordre, les commandes exécutées, leurs résultats, les captures utiles et les réponses aux questions.</p>
+<h2>Documentation</h2>
+<ul>
+<li><a href="https://besu.hyperledger.org/en/stable/private-networks/">Hyperledger Besu : réseaux privés</a></li>
+<li><a href="https://ethereum.org/fr/developers/docs/transactions/">Ethereum : transactions</a></li>
+<li><a href="https://ethereum.org/fr/developers/docs/smart-contracts/">Ethereum : smart contracts</a></li>
+<li><a href="https://remix.ethereum.org/">Remix IDE</a></li>
+<li><a href="https://metamask.io/">MetaMask</a></li>
+<li><a href="https://hardhat.org/">Hardhat</a></li>
+<li><a href="https://trufflesuite.com/">Truffle</a></li>
+</ul>
+<h2>Questions</h2>
+<div class="q"><h3>Question 1 : architecture</h3>
+<p>Lisez la documentation de Besu pour comprendre sa structure et ses composants. Décrivez le fonctionnement de la blockchain à l'aide d'un schéma simplifié d'architecture réseau P2P.</p></div>
+<div class="q"><h3>Question 2 : installation d'un nœud</h3>
+<p>Installez Besu localement (distribution binaire ou image Docker) et lancez un nœud. Confirmez qu'il fonctionne : consultez le journal et interrogez-le avec <code>curl</code> (API JSON-RPC activée).</p>
+<pre><code class="language-bash">curl -X POST -H &quot;Content-Type: application/json&quot; \
+  --data &#x27;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;method&quot;:&quot;web3_clientVersion&quot;,&quot;params&quot;:[],&quot;id&quot;:1}&#x27; \
+  http://127.0.0.1:8545</code></pre><div class="box note"><strong>Conseil :</strong> Besu fonctionne sous Windows mais avec des difficultés possibles. Utilisez de préférence une machine ou une VM Linux (Ubuntu).</div></div>
+<div class="q"><h3>Question 3 : réseau privé QBFT à 4 nœuds</h3>
+<p>Lancez localement un réseau privé de 4 nœuds avec le consensus QBFT, en suivant le <a href="https://besu.hyperledger.org/23.4.0/private-networks/tutorials/qbft">tutoriel Besu (version 23.4.0)</a>. Vérifiez que les blocs sont produits et que les nœuds sont connectés (<code>eth_blockNumber</code>, <code>net_peerCount</code>).</p>
+<div class="box warn">Le tutoriel est lié à une version précise de Besu. Si vous utilisez une version plus récente, consultez la documentation de cette version : certaines options de ligne de commande ou de configuration ont pu changer.</div></div>
+<div class="q"><h3>Question 4 : types de transactions</h3>
+<p>À partir de la documentation, identifiez les types de transactions que l'on peut envoyer sur un réseau blockchain (par usage : transfert, déploiement de contrat, appel de contrat ; et par format de transaction).</p></div>
+<div class="q"><h3>Question 5 : premier smart contract</h3>
+<p>Lisez la documentation sur les smart contracts. Compilez, déployez et testez le contrat <code>Storage.sol</code> ci-dessous (Solidity), qui stocke puis restitue une valeur.</p>
+<pre><code class="language-solidity">// SPDX-License-Identifier: GPL-3.0
+pragma solidity &gt;=0.8.2 &lt;0.9.0;
+
+/// @title Storage
+/// @dev Stocke et restitue une valeur dans une variable
+contract Storage {
+    uint256 number;
+
+    /// @param num valeur à stocker
+    function store(uint256 num) public {
+        number = num;
+    }
+
+    /// @return valeur de `number`
+    function retrieve() public view returns (uint256) {
+        return number;
+    }
+}</code></pre>
+<p>Dans <a href="https://remix.ethereum.org/">Remix</a>, déployez et utilisez le contrat : d'abord avec la machine virtuelle intégrée, puis sur <strong>votre réseau privé</strong> via un réseau injecté par MetaMask (chain ID de votre fichier genesis).</p></div>
+<div class="q"><h3>Question 6 : première DApp avec Hardhat</h3>
+<p>Suivez le <a href="https://hardhat.org/hardhat-runner/docs/getting-started#overview">tutoriel de démarrage Hardhat</a> (contrat <code>Lock.sol</code>). Adaptez <code>hardhat.config.js</code> pour déployer et tester la DApp sur votre réseau privé Besu. Voir le <a href="TP2_Introduction_DApps.html">TP2</a> pour une configuration type.</p></div>
+<h2>Modalités de rendu</h2>
+<p>Relevé de manipulations au format texte (ou Markdown). <span class="todo">[à compléter : date et dépôt]</span></p>
+</main>
+</body>
+</html>

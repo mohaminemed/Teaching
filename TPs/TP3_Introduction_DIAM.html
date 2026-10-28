@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TP3 : Contrôle d'accès décentralisé avec smart contracts (RBAC et ABAC)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">TP3 · Contrôle d'accès</p>
+<h1>TP3 : Contrôle d'accès décentralisé avec smart contracts (RBAC et ABAC)</h1>
+
+<h2>Objectifs</h2>
+<ul>
+<li>Implémenter un contrôle d'accès décentralisé avec les modèles <strong>RBAC</strong> (rôles) et <strong>ABAC</strong> (attributs).</li>
+<li>Développer une marketplace d'enchères décentralisée (smart contracts, Hardhat).</li>
+<li>La déployer sur son propre réseau Besu.</li>
+<li>Programmer et exécuter des scénarios de tests.</li>
+</ul>
+<p>Vous développez deux smart contracts :</p>
+<ul>
+<li><strong>AccessManagement.sol</strong> : gère les rôles et les attributs des utilisateurs.</li>
+<li><strong>BusinessManagement.sol</strong> : marketplace d'enchères qui vérifie les permissions en interrogeant <code>AccessManagement</code>.</li>
+</ul><h2>Documentation</h2>
+<ul>
+<li><a href="https://besu.hyperledger.org/en/stable/private-networks/">Hyperledger Besu</a></li>
+<li><a href="https://ethereum.org/fr/developers/docs/smart-contracts/">Ethereum : smart contracts</a></li>
+<li><a href="https://hardhat.org/">Hardhat</a></li>
+<li><a href="https://remix.ethereum.org/">Remix IDE</a></li>
+<li><a href="https://metamask.io/">MetaMask</a></li>
+</ul>
+<h2>Spécification</h2>
+<h3>AccessManagement.sol (RBAC + ABAC)</h3>
+<table><tr><th>Rôle</th><th>Droits</th></tr>
+<tr><td>ROOT</td><td>Entité qui déploie le contrat. Peut ajouter des administrateurs.</td></tr>
+<tr><td>ADMIN</td><td>Peut enregistrer des utilisateurs.</td></tr>
+<tr><td>SELLER</td><td>Peut créer des enchères (sous condition d'attribut).</td></tr>
+<tr><td>BUYER</td><td>Peut enchérir.</td></tr></table>
+<table><tr><th>Fonction</th><th>Description</th></tr>
+<tr><td><code>addAdmin(address admin)</code></td><td>Ajoute un administrateur (ROOT uniquement).</td></tr>
+<tr><td><code>addUser(address user, string role, string department)</code></td><td>Enregistre un utilisateur avec un rôle (SELLER ou BUYER) et un attribut (département).</td></tr>
+<tr><td><code>delegateRights(address toSeller)</code></td><td>Un SELLER délègue ses droits à un autre SELLER.</td></tr></table>
+<p><strong>Contrôle ABAC :</strong> l'attribut <code>department</code> (ou tout autre attribut) restreint les permissions ; par exemple, seuls les sellers d'un département donné peuvent vendre certains produits.</p>
+<div class="box note"><p><strong>Choix de conception à préciser et justifier dans votre README</strong> (l'énoncé ne les impose pas) :</p>
+<ul><li>Que signifie « déléguer ses droits » : transfert ou partage ? Durée ? Le délégué peut-il redéléguer ? Peut-on révoquer ?</li>
+<li>Comment relier un produit (<code>itemId</code>) à un département autorisé pour appliquer la règle ABAC ?</li>
+<li>Rôles et départements : <code>string</code> ou type énuméré / <code>bytes32</code> (coût en gas, risque de fautes de frappe) ?</li>
+<li>ROOT peut-il aussi enregistrer des utilisateurs ? Peut-on changer le rôle d'un utilisateur ?</li></ul></div>
+<h3>BusinessManagement.sol (marketplace)</h3>
+<table><tr><th>Fonction</th><th>Condition</th></tr>
+<tr><td><code>createAuction(uint itemId, uint minPrice)</code></td><td>Seuls les SELLERS (respectant la règle ABAC) peuvent créer une enchère.</td></tr>
+<tr><td><code>placeBid(uint auctionId)</code></td><td>Seuls les BUYERS peuvent enchérir ; l'offre doit dépasser le minimum et l'offre en cours.</td></tr></table>
+<p>Les vérifications se font en interrogeant <code>AccessManagement</code> via une interface :</p>
+<pre><code class="language-solidity">// Proposition d&#x27;interface, à adapter à votre implémentation
+interface IAccessManagement {
+    function isSeller(address user) external view returns (bool);
+    function isBuyer(address user) external view returns (bool);
+    function departmentOf(address user) external view returns (string memory);
+    function canSell(address user) external view returns (bool); // rôle SELLER, direct ou délégué
+}</code></pre>
+<div class="box warn"><p><strong>Points de sécurité à traiter :</strong></p>
+<ul><li>Utiliser <code>msg.sender</code> et <strong>jamais</strong> <code>tx.origin</code> pour l'authentification.</li>
+<li>Restituer l'ancienne meilleure offre sans risque : privilégier un retrait par l'enchérisseur (<em>pull payment</em>) plutôt qu'un envoi direct, et appliquer le motif <em>checks-effects-interactions</em> (voir le risque de réentrance).</li>
+<li>Émettre des événements (<code>AdminAdded</code>, <code>UserAdded</code>, <code>RightsDelegated</code>, <code>AuctionCreated</code>, <code>BidPlaced</code>) pour l'audit.</li></ul></div>
+<h2>Mise en place</h2>
+<h3>1. Projet Hardhat</h3>
+<pre><code class="language-bash">mkdir access-dapp &amp;&amp; cd access-dapp
+npm init -y
+npm install --save-dev hardhat@^2 @nomicfoundation/hardhat-toolbox@^5 dotenv
+npx hardhat init</code></pre>
+<h3>2. Contrats</h3>
+<p>Créez <code>contracts/AccessManagement.sol</code> et <code>contracts/BusinessManagement.sol</code> (le second reçoit l'adresse du premier dans son constructeur).</p>
+<h3>3. Configuration (<code>hardhat.config.js</code>)</h3>
+<pre><code class="language-javascript">require(&quot;dotenv&quot;).config();
+require(&quot;@nomicfoundation/hardhat-toolbox&quot;);
+
+module.exports = {
+  solidity: {
+    version: &quot;0.8.24&quot;,
+    settings: { evmVersion: &quot;paris&quot; },   // compatibilité avec un genesis Besu sans Shanghai
+  },
+  networks: {
+    hardhat: { chainId: 1337 },
+    besu: {
+      url: &quot;http://127.0.0.1:8545&quot;,
+      accounts: process.env.SECRET_KEY ? [process.env.SECRET_KEY] : [],  // clé de TEST, dans .env
+    },
+  },
+};</code></pre>
+<p>Fichier <code>.env</code> : <code>SECRET_KEY=0x...</code> (clé d'un compte de <strong>test</strong> de votre réseau Besu). Ajoutez <code>.env</code> à <code>.gitignore</code>.</p>
+<h3>4. Déploiement (<code>scripts/deploy.js</code>)</h3>
+<pre><code class="language-javascript">const { ethers } = require(&quot;hardhat&quot;);
+
+async function main() {
+  const access = await ethers.deployContract(&quot;AccessManagement&quot;);
+  await access.waitForDeployment();
+  console.log(&quot;AccessManagement déployé à :&quot;, await access.getAddress());
+
+  const business = await ethers.deployContract(&quot;BusinessManagement&quot;, [await access.getAddress()]);
+  await business.waitForDeployment();
+  console.log(&quot;BusinessManagement déployé à :&quot;, await business.getAddress());
+}
+
+main().catch((error) =&gt; {
+  console.error(error);
+  process.exitCode = 1;
+});</code></pre><pre><code class="language-bash"># Réseau Besu (TP1) :
+npx hardhat run scripts/deploy.js --network besu
+# Alternative locale :
+npx hardhat node</code></pre>
+<h3>5. Tests</h3>
+<p>Squelette (<code>test/*.js</code>), à compléter :</p>
+<pre><code class="language-javascript">const { expect } = require(&quot;chai&quot;);
+const { ethers } = require(&quot;hardhat&quot;);
+
+describe(&quot;AccessManagement&quot;, function () {
+  let access, root, admin, seller, buyer, other;
+
+  beforeEach(async () =&gt; {
+    [root, admin, seller, buyer, other] = await ethers.getSigners();
+    access = await ethers.deployContract(&quot;AccessManagement&quot;);
+    await access.waitForDeployment();
+  });
+
+  it(&quot;n&#x27;autorise que ROOT à ajouter un administrateur&quot;, async () =&gt; {
+    // TODO
+  });
+
+  it(&quot;n&#x27;autorise que les ADMIN à enregistrer un utilisateur&quot;, async () =&gt; {
+    // TODO
+  });
+});
+
+describe(&quot;BusinessManagement&quot;, function () {
+  it(&quot;n&#x27;autorise que les SELLER à créer une enchère&quot;, async () =&gt; {
+    // TODO : expect(...).to.be.reverted
+  });
+});</code></pre>
+<h2>Scénarios de test à couvrir</h2>
+<ul>
+<li>Ajout d'un administrateur, d'un seller et d'un buyer.</li>
+<li>Refus : un compte non autorisé ajoute un administrateur ou un utilisateur.</li>
+<li>Délégation de droits seller &rarr; seller (et comportement choisi pour la révocation).</li>
+<li>Refus : création d'enchère sans rôle SELLER, ou par un seller hors du département autorisé.</li>
+<li>Refus : enchère sans rôle BUYER, offre trop basse.</li>
+<li>Fonctionnement de bout en bout sur le réseau Besu.</li>
+</ul><h2>Modalités de rendu</h2>
+<p>Code, tests, <code>README.md</code> (étapes de lancement et choix de conception). <span class="todo">[à compléter : date et dépôt]</span></p>
+</main>
+</body>
+</html>

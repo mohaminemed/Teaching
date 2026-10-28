@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TD : Apprentissage fédéré avec FashionMNIST</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">TD · Apprentissage fédéré</p>
+<h1>TD : Apprentissage fédéré avec FashionMNIST</h1>
+
+<h2>Objectifs</h2>
+<ul>
+<li>Comprendre les principes de l'apprentissage fédéré (FL) et le rôle du client, du serveur et de l'agrégation.</li>
+<li>Mettre en place un système FL avec PyTorch et Flower (mode simulation).</li>
+<li>Entraîner un classifieur d'images (FashionMNIST) en mode fédéré.</li>
+<li>Comparer les performances du modèle fédéré à celles d'un entraînement centralisé.</li>
+</ul>
+<h2>Rappel : l'apprentissage fédéré</h2>
+<p>L'apprentissage fédéré est une approche de machine learning où plusieurs clients (appareils, organisations) entraînent collaborativement un modèle <strong>sans partager leurs données brutes</strong> : chaque client entraîne localement, puis envoie une mise à jour du modèle qu'un serveur agrège (FedAvg : moyenne pondérée par la taille des jeux de données locaux).</p>
+<div class="box warn"><strong>Attention :</strong> ne pas partager les données brutes ne garantit pas à lui seul la confidentialité : les mises à jour peuvent elles-mêmes fuiter de l'information (voir questions finales).</div><h2>Documentation</h2>
+<ul>
+<li><a href="https://flower.ai/docs">Documentation de Flower</a></li>
+<li><a href="https://flower.ai/docs/framework/tutorial-quickstart-pytorch.html">Quickstart PyTorch (Flower)</a></li>
+<li><a href="https://pytorch.org/tutorials/">Tutoriels PyTorch</a></li>
+<li><a href="https://www.tensorflow.org/federated">TensorFlow Federated</a></li>
+</ul>
+<h2>Travail à réaliser</h2>
+<h3>1. Mise en place de l'environnement</h3>
+<p>Python 3.9 ou plus récent (vérifier la version supportée par votre version de Flower). Créez un environnement virtuel, puis installez :</p>
+<pre><code class="language-bash">pip install torch torchvision &quot;flwr[simulation]&quot; &quot;flwr-datasets[vision]&quot;</code></pre>
+<p>Structure du projet (vous pouvez aussi la générer avec <code>flwr new</code>) :</p>
+<pre><code>fl_on_fashionmnist/
+├── fl_on_fashionmnist/
+│   ├── __init__.py
+│   ├── client_app.py   # ClientApp
+│   ├── server_app.py   # ServerApp
+│   ├── models.py       # LeNet et CNN
+│   └── task.py         # chargement des données, entraînement, évaluation
+├── pyproject.toml      # dépendances et configuration de l&#x27;exécution
+└── README.md</code></pre>
+<h3 id="modeles">2. Modèles</h3>
+<p>Deux modèles sont utilisés dans les TPs et le projet. Placez-les dans <code>models.py</code>.</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class LeNet(nn.Module):
+    &quot;&quot;&quot;LeNet-5 adapté à FashionMNIST (entrée 1x28x28).&quot;&quot;&quot;
+    def __init__(self, num_classes=10):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 6, kernel_size=5, stride=1, padding=2)   # -&gt; 6x28x28
+        self.conv2 = nn.Conv2d(6, 16, kernel_size=5, stride=1)             # -&gt; 16x10x10
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, num_classes)
+
+    def forward(self, x):
+        x = F.max_pool2d(F.relu(self.conv1(x)), 2, 2)                     # -&gt; 6x14x14
+        x = F.max_pool2d(F.relu(self.conv2(x)), 2, 2)                     # -&gt; 16x5x5
+        x = torch.flatten(x, start_dim=1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
+
+
+class CNN(nn.Module):
+    &quot;&quot;&quot;CNN simple (entrée 1x28x28).&quot;&quot;&quot;
+    def __init__(self, num_classes=10):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 8, kernel_size=3, padding=1)             # -&gt; 8x28x28
+        self.conv2 = nn.Conv2d(8, 16, kernel_size=3, padding=1)            # -&gt; 16x14x14
+        self.fc1 = nn.Linear(16 * 7 * 7, 64)
+        self.fc2 = nn.Linear(64, num_classes)
+
+    def forward(self, x):
+        x = F.max_pool2d(F.relu(self.conv1(x)), 2, 2)                     # -&gt; 8x14x14
+        x = F.max_pool2d(F.relu(self.conv2(x)), 2, 2)                     # -&gt; 16x7x7
+        x = torch.flatten(x, start_dim=1)
+        x = F.relu(self.fc1(x))
+        return self.fc2(x)</code></pre>
+<h3>3. Données et fonctions d'entraînement (<code>task.py</code>)</h3>
+<p>Le chargement des partitions est fourni. <strong>À vous d'écrire</strong> <code>train</code> et <code>test</code>.</p>
+<pre><code class="language-python">from collections import OrderedDict
+
+import torch
+from flwr_datasets import FederatedDataset
+from flwr_datasets.partitioner import IidPartitioner
+from torch.utils.data import DataLoader
+from torchvision.transforms import Compose, Normalize, ToTensor
+
+from fl_on_fashionmnist.models import LeNet, CNN   # classes ci-dessus (fichier models.py)
+
+_fds = None  # jeu de données fédéré, créé une seule fois par processus
+
+
+def load_data(partition_id: int, num_partitions: int, batch_size: int):
+    &quot;&quot;&quot;Charge la partition `partition_id` (IID) et la découpe en train/validation (80/20).&quot;&quot;&quot;
+    global _fds
+    if _fds is None:
+        partitioner = IidPartitioner(num_partitions=num_partitions)
+        _fds = FederatedDataset(dataset=&quot;zalando-datasets/fashion_mnist&quot;,
+                                partitioners={&quot;train&quot;: partitioner})
+    partition = _fds.load_partition(partition_id)
+    split = partition.train_test_split(test_size=0.2, seed=42)
+    tf = Compose([ToTensor(), Normalize((0.2860,), (0.3530,))])
+
+    def apply_tf(batch):
+        batch[&quot;image&quot;] = [tf(img) for img in batch[&quot;image&quot;]]
+        return batch
+
+    split = split.with_transform(apply_tf)
+    return (DataLoader(split[&quot;train&quot;], batch_size=batch_size, shuffle=True),
+            DataLoader(split[&quot;test&quot;], batch_size=batch_size))
+
+
+def train(net, trainloader, epochs, device):
+    &quot;&quot;&quot;TODO : boucle d&#x27;entraînement locale (CrossEntropyLoss, SGD).
+    Les batchs sont des dictionnaires {&quot;image&quot;: ..., &quot;label&quot;: ...}.
+    Retourne la perte moyenne d&#x27;entraînement.&quot;&quot;&quot;
+    raise NotImplementedError
+
+
+def test(net, testloader, device):
+    &quot;&quot;&quot;TODO : évaluation locale. Retourne (perte moyenne, accuracy).&quot;&quot;&quot;
+    raise NotImplementedError
+
+
+def get_weights(net):
+    return [v.cpu().numpy() for _, v in net.state_dict().items()]
+
+
+def set_weights(net, parameters):
+    state = OrderedDict({k: torch.tensor(v) for k, v in zip(net.state_dict().keys(), parameters)})
+    net.load_state_dict(state, strict=True)</code></pre>
+<h3>4. Client et serveur</h3>
+<p><code>client_app.py</code> :</p>
+<pre><code class="language-python">import torch
+from flwr.client import ClientApp, NumPyClient
+from flwr.common import Context
+
+from fl_on_fashionmnist.models import LeNet
+from fl_on_fashionmnist.task import get_weights, set_weights, load_data, train, test
+
+
+class FlowerClient(NumPyClient):
+    def __init__(self, net, trainloader, valloader, local_epochs):
+        self.net, self.trainloader, self.valloader = net, trainloader, valloader
+        self.local_epochs = local_epochs
+        self.device = torch.device(&quot;cuda&quot; if torch.cuda.is_available() else &quot;cpu&quot;)
+        self.net.to(self.device)
+
+    def fit(self, parameters, config):
+        set_weights(self.net, parameters)
+        loss = train(self.net, self.trainloader, self.local_epochs, self.device)
+        return get_weights(self.net), len(self.trainloader.dataset), {&quot;train_loss&quot;: loss}
+
+    def evaluate(self, parameters, config):
+        set_weights(self.net, parameters)
+        loss, acc = test(self.net, self.valloader, self.device)
+        return loss, len(self.valloader.dataset), {&quot;accuracy&quot;: acc}
+
+
+def client_fn(context: Context):
+    partition_id = context.node_config[&quot;partition-id&quot;]
+    num_partitions = context.node_config[&quot;num-partitions&quot;]
+    local_epochs = context.run_config[&quot;local-epochs&quot;]
+    batch_size = context.run_config[&quot;batch-size&quot;]
+    trainloader, valloader = load_data(partition_id, num_partitions, batch_size)
+    return FlowerClient(LeNet(), trainloader, valloader, local_epochs).to_client()
+
+
+app = ClientApp(client_fn=client_fn)</code></pre><p><code>server_app.py</code> :</p><pre><code class="language-python">from flwr.common import Context, ndarrays_to_parameters
+from flwr.server import ServerApp, ServerAppComponents, ServerConfig
+from flwr.server.strategy import FedAvg
+
+from fl_on_fashionmnist.models import LeNet
+from fl_on_fashionmnist.task import get_weights
+
+
+def weighted_average(metrics):
+    &quot;&quot;&quot;Moyenne pondérée par le nombre d&#x27;exemples des métriques renvoyées par les clients.&quot;&quot;&quot;
+    total = sum(n for n, _ in metrics)
+    return {&quot;accuracy&quot;: sum(n * m[&quot;accuracy&quot;] for n, m in metrics) / total}
+
+
+def server_fn(context: Context):
+    num_rounds = context.run_config[&quot;num-server-rounds&quot;]
+    fraction_fit = context.run_config[&quot;fraction-fit&quot;]
+    initial = ndarrays_to_parameters(get_weights(LeNet()))
+    strategy = FedAvg(fraction_fit=fraction_fit, fraction_evaluate=1.0,
+                      min_available_clients=2, initial_parameters=initial,
+                      evaluate_metrics_aggregation_fn=weighted_average)
+    return ServerAppComponents(strategy=strategy, config=ServerConfig(num_rounds=num_rounds))
+
+
+app = ServerApp(server_fn=server_fn)</code></pre>
+<h3>5. Configuration et exécution</h3>
+<p><code>pyproject.toml</code> (exemple à adapter selon votre version de Flower) :</p>
+<pre><code class="language-toml">[build-system]
+requires = [&quot;hatchling&quot;]
+build-backend = &quot;hatchling.build&quot;
+
+[project]
+name = &quot;fl_on_fashionmnist&quot;
+version = &quot;1.0.0&quot;
+description = &quot;FL sur FashionMNIST avec Flower&quot;
+dependencies = [
+    &quot;flwr[simulation]&gt;=1.13.0&quot;,
+    &quot;flwr-datasets[vision]&gt;=0.5.0&quot;,
+    &quot;torch&gt;=2.2.0&quot;,
+    &quot;torchvision&gt;=0.17.0&quot;,
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [&quot;.&quot;]
+
+[tool.flwr.app]
+publisher = &quot;votre-nom&quot;
+
+[tool.flwr.app.components]
+serverapp = &quot;fl_on_fashionmnist.server_app:app&quot;
+clientapp = &quot;fl_on_fashionmnist.client_app:app&quot;
+
+[tool.flwr.app.config]
+num-server-rounds = 3
+fraction-fit = 0.5
+local-epochs = 1
+batch-size = 32
+learning-rate = 0.01
+
+[tool.flwr.federations]
+default = &quot;local-simulation&quot;
+
+[tool.flwr.federations.local-simulation]
+options.num-supernodes = 10</code></pre><pre><code class="language-bash">flwr run .</code></pre><div class="box note"><strong>Remarque :</strong> les anciennes versions de ce TD utilisaient <code>fl.server.start_server(...)</code> et <code>python server.py</code> / <code>python client.py</code>. Cette API est dépréciée dans les versions récentes de Flower ; le mode simulation avec <code>flwr run</code> ci-dessus la remplace.</div>
+<h3>6. Évaluation et comparaison</h3>
+<ol>
+<li>Entraînez le même modèle en <strong>mode centralisé</strong> sur l'ensemble de FashionMNIST, avec un nombre total d'époques comparable.</li>
+<li>Comparez l'<em>accuracy</em>, la <em>précision</em> et le <em>F1-score</em> (moyenne macro sur les 10 classes) du modèle fédéré et du modèle centralisé.</li>
+<li>Variez au moins un paramètre : nombre de clients, nombre de tours, époques locales ou fraction de clients par tour. Présentez les résultats dans un tableau ou une courbe.</li>
+</ol>
+
+<h2>Questions</h2>
+<ul>
+<li>Quels sont les avantages et les limites de l'apprentissage fédéré ?</li>
+<li>Pourquoi le partitionnement IID est-il une hypothèse optimiste ? Quel effet attendre d'un partitionnement non-IID ?</li>
+<li>Comment améliorer la confidentialité (ex. confidentialité différentielle, agrégation sécurisée) et la robustesse (ex. agrégation robuste) du système ?</li>
+</ul><h2>Modalités de rendu</h2>
+<p>Code, résultats comparatifs et réponses aux questions. <span class="todo">[à compléter : date et dépôt]</span></p>
+</main>
+</body>
+</html>

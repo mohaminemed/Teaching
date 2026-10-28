@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projet : apprentissage fédéré et BFL avec FashionMNIST</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">Projet · FL et BFL</p>
+<h1>Projet : apprentissage fédéré et BFL avec FashionMNIST</h1>
+
+<h2>Contexte</h2>
+<p>Ce projet synthétise le TD, le TP4 et le TP5 : vous concevez un système d'apprentissage fédéré sur <strong>FashionMNIST</strong>, une variante orchestrée par blockchain (BFL), puis vous les évaluez face à un modèle centralisé.</p>
+<h2>Documentation</h2>
+<ul>
+<li><a href="https://flower.ai/docs">Documentation de Flower</a></li>
+<li><a href="https://pytorch.org/tutorials/">Tutoriels PyTorch</a></li>
+<li><a href="https://www.tensorflow.org/federated">TensorFlow Federated</a></li>
+<li><a href="https://flower.ai/docs/framework/tutorial-quickstart-pytorch.html">Quickstart PyTorch (Flower)</a></li>
+</ul>
+<h2>Travail à réaliser</h2>
+<h3>1. Système FL sur FashionMNIST</h3>
+<p>Modèles : <strong>CNN</strong> et <strong>LeNet</strong> (définitions dans le <a href="TD_Introduction_FL.html#modeles">TD</a>). Partitionnement IID et non-IID.</p>
+<h3>2. Système BFL</h3>
+<p>La blockchain (Besu) orchestre l'entraînement : enregistrement des clients, tours, vérification des contributions, réputation et exclusion. Voir l'architecture du <a href="TP5_BFL.html">TP5</a>.</p>
+<h3>3. Évaluation et comparaison</h3>
+<p>Comparez accuracy, précision et F1-score (moyenne macro) du modèle FL, du modèle BFL et d'un modèle centralisé, pour les deux modèles (CNN, LeNet), avec et sans attaque (<a href="TP4_Robust_FL.html">TP4</a>).</p>
+<h3>4. Conclusions</h3>
+<ul>
+<li>Quels sont les avantages et limites du FL et du BFL ?</li>
+<li>Comment améliorer la confidentialité du système BFL ?</li>
+</ul>
+<h2>Livrables</h2>
+<ul>
+<li>Code source documenté et reproductible (README, versions, graines).</li>
+<li>Rapport : architecture, choix de conception, protocole expérimental, résultats, analyse critique.</li>
+<li>Démonstration.</li>
+</ul><h2>Modalités de rendu</h2>
+<p><span class="todo">[à compléter : date et dépôt]</span> Critères d'évaluation : <span class="todo">[à compléter]</span></p>
+</main>
+</body>
+</html>

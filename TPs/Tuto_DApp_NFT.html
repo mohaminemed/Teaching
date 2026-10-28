@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutoriel : développement d'une DApp NFT avec Hardhat et IPFS</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">Tutoriel · DApp NFT</p>
+<h1>Tutoriel : développement d'une DApp NFT avec Hardhat et IPFS</h1>
+
+<div class="box note">Ce tutoriel sert de point de départ pour la <a href="TP2_Introduction_DApps.html">question 3 du TP2</a>. Il est volontairement minimal : à vous de le compléter (galerie, transfert, tests).</div>
+<h2>Prérequis</h2>
+<ul>
+<li>Node.js (version LTS) et npm.</li>
+<li>MetaMask installé dans le navigateur.</li>
+<li>Un nœud IPFS local : <a href="https://docs.ipfs.tech/install/command-line/">Kubo</a> (commande <code>ipfs</code>).</li>
+</ul>
+<h2>1. Initialisation du projet</h2>
+<pre><code class="language-bash">mkdir nft-dapp &amp;&amp; cd nft-dapp
+npm init -y
+npm install --save-dev hardhat@^2 @nomicfoundation/hardhat-toolbox@^5 dotenv
+npm install @openzeppelin/contracts@4.9.6
+npx hardhat init        # choisir &quot;Create a JavaScript project&quot;</code></pre>
+<h2>2. Contrat intelligent ERC-721</h2>
+<p>Créez <code>contracts/MyNFT.sol</code>. Le contrat utilise <code>ERC721URIStorage</code> afin d'associer à chaque NFT une URI (ici un lien IPFS) : sans URI, le NFT ne pointerait vers aucun contenu.</p>
+<pre><code class="language-solidity">// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import &quot;@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol&quot;;
+import &quot;@openzeppelin/contracts/access/Ownable.sol&quot;;
+
+contract MyNFT is ERC721URIStorage, Ownable {
+    uint256 public tokenCounter;
+
+    constructor() ERC721(&quot;MyNFT&quot;, &quot;MNFT&quot;) {}
+
+    /// @notice Crée un NFT pour `recipient`, dont les métadonnées sont à `uri` (ex. ipfs://&lt;CID&gt;)
+    function createNFT(address recipient, string memory uri) public onlyOwner returns (uint256) {
+        uint256 newTokenId = tokenCounter;
+        tokenCounter++;
+        _safeMint(recipient, newTokenId);
+        _setTokenURI(newTokenId, uri);
+        return newTokenId;
+    }
+}</code></pre><div class="box warn">Ce code correspond à OpenZeppelin <strong>4.x</strong>. En version 5, le constructeur de <code>Ownable</code> prend un argument (<code>Ownable(msg.sender)</code>) et la version minimale de Solidity est 0.8.20.</div>
+<h2>3. Configuration de Hardhat</h2>
+<pre><code class="language-javascript">require(&quot;dotenv&quot;).config();
+require(&quot;@nomicfoundation/hardhat-toolbox&quot;);
+
+module.exports = {
+  solidity: {
+    version: &quot;0.8.24&quot;,
+    // &quot;paris&quot; évite l&#x27;opcode PUSH0 (non supporté par un réseau Besu dont le genesis n&#x27;active pas Shanghai)
+    settings: { evmVersion: &quot;paris&quot; },
+  },
+  networks: {
+    localhost: { url: &quot;http://127.0.0.1:8545&quot; },          // npx hardhat node
+    besu: {
+      url: &quot;http://127.0.0.1:8545&quot;,                       // RPC d&#x27;un de vos nœuds Besu
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+};</code></pre>
+<p>Créez un fichier <code>.env</code> contenant <code>PRIVATE_KEY=0x...</code> (clé d'un compte de <strong>test</strong> pré-financé de votre réseau Besu) et ajoutez <code>.env</code> à <code>.gitignore</code>. Ne publiez jamais une clé privée.</p>
+<h2>4. Déploiement</h2>
+<pre><code class="language-javascript">const { ethers } = require(&quot;hardhat&quot;);
+
+async function main() {
+  const myNFT = await ethers.deployContract(&quot;MyNFT&quot;);
+  await myNFT.waitForDeployment();
+  console.log(&quot;MyNFT déployé à :&quot;, await myNFT.getAddress());
+}
+
+main().catch((error) =&gt; {
+  console.error(error);
+  process.exitCode = 1;
+});</code></pre><pre><code class="language-bash"># Réseau local Hardhat (développement)
+npx hardhat node
+npx hardhat run scripts/deploy.js --network localhost
+
+# Réseau privé Besu (TP1)
+npx hardhat run scripts/deploy.js --network besu</code></pre>
+<h2>5. Stockage décentralisé avec IPFS</h2>
+<p>La bibliothèque <code>js-ipfs</code> utilisée dans les anciennes versions de ce tutoriel n'est plus maintenue. Utilisez un démon <strong>Kubo</strong> local et le client <code>kubo-rpc-client</code> :</p>
+<pre><code class="language-bash">ipfs init
+ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin &#x27;[&quot;http://localhost:5173&quot;]&#x27;
+ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods &#x27;[&quot;PUT&quot;,&quot;POST&quot;]&#x27;
+ipfs daemon</code></pre>
+<p>Les deux lignes <code>config</code> autorisent l'interface web (CORS) à appeler l'API IPFS locale (port 5001).</p>
+<h2>6. Interface web</h2>
+<pre><code class="language-bash">npm create vite@latest frontend -- --template react
+cd frontend
+npm install
+npm install web3 kubo-rpc-client
+npm run dev          # http://localhost:5173</code></pre>
+<p>Copiez l'ABI du contrat (champ <code>abi</code> du fichier <code>artifacts/contracts/MyNFT.sol/MyNFT.json</code>) dans <code>frontend/src/MyNFT.abi.json</code>, puis remplacez le contenu de <code>src/App.jsx</code> :</p>
+<pre><code class="language-jsx">import { useState } from &quot;react&quot;;
+import Web3 from &quot;web3&quot;;
+import { create } from &quot;kubo-rpc-client&quot;;
+import abi from &quot;./MyNFT.abi.json&quot;;
+
+const CONTRACT_ADDRESS = &quot;ADRESSE_DU_CONTRAT&quot;;
+const ipfs = create({ url: &quot;http://127.0.0.1:5001&quot; });
+
+export default function App() {
+  const [file, setFile] = useState(null);
+  const [status, setStatus] = useState(&quot;&quot;);
+
+  const mintNFT = async () =&gt; {
+    try {
+      const [account] = await window.ethereum.request({ method: &quot;eth_requestAccounts&quot; });
+      const web3 = new Web3(window.ethereum);
+      const { cid } = await ipfs.add(file);                       // 1. fichier sur IPFS
+      const contract = new web3.eth.Contract(abi, CONTRACT_ADDRESS);
+      await contract.methods.createNFT(account, `ipfs://${cid}`)  // 2. transaction on-chain
+        .send({ from: account });
+      setStatus(&quot;NFT créé : ipfs://&quot; + cid);
+    } catch (e) {
+      setStatus(&quot;Erreur : &quot; + e.message);
+    }
+  };
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Créer un NFT&lt;/h1&gt;
+      &lt;input type=&quot;file&quot; onChange={(e) =&gt; setFile(e.target.files[0])} /&gt;
+      &lt;button onClick={mintNFT} disabled={!file}&gt;Créer le NFT&lt;/button&gt;
+      &lt;p&gt;{status}&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+<h2>7. Test</h2>
+<p>Ouvrez l'interface, connectez MetaMask au réseau choisi (chain ID de votre réseau), puis créez un NFT. Comme <code>createNFT</code> est réservé au propriétaire (<code>onlyOwner</code>), la transaction doit être envoyée depuis le compte qui a déployé le contrat.</p>
+<h2>Pour aller plus loin</h2>
+<ul>
+<li>Faire pointer l'URI vers un fichier JSON de métadonnées (<code>name</code>, <code>description</code>, <code>image</code>) plutôt que directement vers l'image.</li>
+<li>Permettre à tout utilisateur de créer des NFT (et réfléchir aux conséquences).</li>
+<li>Écrire des tests Hardhat (création, droits, transfert).</li>
+</ul>
+</main>
+</body>
+</html>

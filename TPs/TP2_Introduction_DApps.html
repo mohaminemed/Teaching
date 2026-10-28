@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TP2 : Introduction au développement de DApps (NFT)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">TP2 · DApps</p>
+<h1>TP2 : Introduction au développement de DApps (NFT)</h1>
+
+<h2>Objectifs</h2>
+<ul>
+<li>Se familiariser avec les outils de développement d'applications décentralisées (smart contracts, Web3, Hardhat, Remix, MetaMask).</li>
+<li>Développer une DApp personnalisée de gestion de NFTs.</li>
+<li>La déployer sur son propre réseau blockchain (Besu).</li>
+<li>Programmer et exécuter des scénarios de tests.</li>
+</ul><h2>Documentation</h2>
+<ul>
+<li><a href="https://besu.hyperledger.org/en/stable/private-networks/">Hyperledger Besu</a></li>
+<li><a href="https://ethereum.org/fr/developers/docs/transactions/">Ethereum : transactions</a></li>
+<li><a href="https://ethereum.org/fr/developers/docs/smart-contracts/">Ethereum : smart contracts</a></li>
+<li><a href="https://hardhat.org/">Hardhat</a></li>
+<li><a href="https://remix.ethereum.org/">Remix IDE</a></li>
+<li><a href="https://metamask.io/">MetaMask</a></li>
+</ul>
+<h2>Questions</h2>
+<div class="q"><h3>Question 1 : Hardhat</h3>
+<p>Hardhat permet de compiler, déployer, tester et déboguer des contrats, et de lancer un réseau blockchain local.</p>
+<ol><li>Installez Node.js.</li><li>Installez Hardhat : <code>npm install --save-dev hardhat</code>.</li><li>Initialisez un projet Hardhat.</li><li>Lancez un réseau local pour le développement de votre DApp.</li></ol></div>
+<div class="q"><h3>Question 2 : Remix</h3>
+<ul>
+<li>Lancez la version web de Remix et consultez l'espace de travail par défaut.</li>
+<li>Lisez le code des contrats fournis, compilez-les, déployez-les et testez-les.</li>
+</ul></div>
+<div class="q"><h3>Question 3 : DApp NFT de base</h3>
+<ul>
+<li>Lisez attentivement la documentation de Hardhat.</li>
+<li>Sous Remix, créez ou ajoutez un contrat ERC-721 simple pour gérer des NFTs.</li>
+<li>Développez une DApp NFT de base avec Hardhat, IPFS, Web3.js et MetaMask en vous appuyant sur le <a href="Tuto_DApp_NFT.html">tutoriel NFT</a>.</li>
+<li>Écrivez des scénarios de tests Hardhat (au moins : création par le propriétaire, refus de création par un autre compte, transfert d'un NFT).</li>
+</ul></div>
+<div class="q"><h3>Question 4 : personnalisation</h3>
+<ul>
+<li>Modifiez l'interface pour afficher la <strong>galerie</strong> des NFTs créés (indices : <code>tokenCounter</code>, <code>ownerOf</code>, <code>tokenURI</code>).</li>
+<li>Ajoutez la création, le <strong>transfert</strong> (<code>safeTransferFrom</code>) et la <strong>consultation</strong> des NFTs.</li>
+</ul></div>
+<div class="q"><h3>Question 5 : déploiement sur le réseau Besu</h3>
+<ul>
+<li>Relancez le réseau configuré dans le <a href="TP1_Introduction_Blockchain.html">TP1</a>.</li>
+<li>Configurez MetaMask pour interagir avec votre réseau Besu local.</li>
+<li>Déployez la DApp NFT sur votre réseau privé.</li>
+<li>Testez le système : création, transfert, affichage.</li>
+</ul></div>
+<h2>Modalités de rendu</h2>
+<p>Déposez le code de la DApp avec un fichier <code>README.md</code> détaillant les étapes pour la lancer, avant <strong>vendredi minuit</strong>.</p>
+</main>
+</body>
+</html>

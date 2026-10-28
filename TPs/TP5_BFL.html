@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TP5 : Apprentissage fédéré basé sur la blockchain (BFL)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">TP5 · FL et blockchain</p>
+<h1>TP5 : Apprentissage fédéré basé sur la blockchain (BFL)</h1>
+
+<h2>Contexte : l'apprentissage fédéré basé sur la blockchain (BFL)</h2>
+<p>Le BFL étend le FL avec une blockchain afin d'obtenir une orchestration <strong>décentralisée</strong>, <strong>traçable</strong> et <strong>vérifiable</strong> de l'entraînement. Au lieu d'un serveur central, des smart contracts supervisent les tours d'entraînement, l'enregistrement des clients, les incitations et la réputation.</p>
+<h2>Objectifs</h2>
+<ul>
+<li>Concevoir et implémenter un système BFL sur FashionMNIST, au-dessus du travail du <a href="TP4_Robust_FL.html">TP4</a> et du réseau Besu du <a href="TP1_Introduction_Blockchain.html">TP1</a>.</li>
+<li>Décider ce qui est stocké on-chain et ce qui reste off-chain.</li>
+<li>Intégrer vérification des contributions, réputation et exclusion de clients malveillants.</li>
+<li>Mesurer le coût du BFL (latence, gas) et son effet sur la robustesse.</li>
+</ul><h2>Documentation</h2>
+<ul>
+<li><a href="https://pytorch.org/tutorials/">Tutoriels PyTorch</a></li>
+<li><a href="https://besu.hyperledger.org/en/stable/private-networks/">Hyperledger Besu</a></li>
+<li><a href="https://ethereum.org/fr/developers/docs/smart-contracts/">Ethereum : smart contracts</a></li>
+<li><a href="https://hardhat.org/">Hardhat</a></li>
+<li><a href="https://remix.ethereum.org/">Remix IDE</a></li>
+</ul>
+<h2>Prérequis</h2>
+<p>Un système FL fonctionnel avec attaques et défenses (TP4) ; un réseau Besu privé (TP1) ; des contrats déployables avec Hardhat (TP2, TP3).</p>
+<h2>Architecture proposée</h2>
+<table><tr><th>Élément</th><th>On-chain (smart contract)</th><th>Off-chain</th></tr>
+<tr><td>Clients</td><td>Enregistrement, rôle, réputation</td><td>Entraînement local, données</td></tr>
+<tr><td>Tours</td><td>Ouverture, fenêtre de soumission, clôture, événements</td><td>Calcul de l'agrégation</td></tr>
+<tr><td>Modèles</td><td>Empreinte (hash) et identifiant de stockage (par exemple CID IPFS)</td><td>Poids du modèle (fichiers volumineux)</td></tr>
+<tr><td>Incitations</td><td>Score, récompenses, pénalités, exclusion</td><td>Calcul des métriques de qualité</td></tr></table>
+<div class="box warn"><p>Ne stockez <strong>jamais</strong> les poids complets sur la blockchain : coût en gas, taille, et exposition des données.</p></div>
+<h3>Déroulement d'un tour (à adapter)</h3>
+<ol><li>Le contrat de coordination ouvre le tour <em>r</em> et publie l'empreinte et l'adresse de stockage du modèle global.</li>
+<li>Chaque client enregistré récupère le modèle, entraîne localement, dépose sa mise à jour hors chaîne et enregistre <code>(r, CID, hash)</code> on-chain.</li>
+<li>L'agrégation est calculée hors chaîne (agrégateur unique, comité ou tous les clients) puis le nouveau modèle global est enregistré on-chain.</li>
+<li>Les contributions sont évaluées (par exemple distance à la médiane, performance sur un jeu de validation) ; la réputation est mise à jour ; les clients malveillants sont pénalisés ou exclus.</li></ol>
+<p>Interfaces possibles (à concevoir) : <code>register()</code>, <code>openRound()</code>, <code>submitUpdate(round, cid, hash)</code>, <code>publishGlobalModel(round, cid, hash)</code>, <code>updateReputation(client, delta)</code>, <code>exclude(client)</code>. Côté Python, interagissez avec Besu via <code>web3.py</code>.</p>
+<h2>Évaluation et comparaison</h2>
+<p>Comparez FL classique, BFL et apprentissage centralisé (accuracy, précision, F1-score), avec et sans attaque. Le tableau ci-dessous reprend des <strong>affirmations courantes à tester</strong>, pas des résultats acquis :</p>
+<table><tr><th>Critère</th><th>Centralisé</th><th>FL</th><th>BFL (hypothèse à valider)</th></tr>
+<tr><td>Précision</td><td>Souvent la plus élevée</td><td>Dépend de l'hétérogénéité des données</td><td>Pas d'avantage automatique : dépend du mécanisme de vérification et d'exclusion</td></tr>
+<tr><td>Sécurité</td><td>Point central de défaillance</td><td>Serveur de confiance requis</td><td>Traçabilité et auditabilité améliorées ; ne protège pas à lui seul contre l'empoisonnement</td></tr>
+<tr><td>Latence</td><td>Faible</td><td>Moyenne</td><td>Plus élevée (consensus, transactions)</td></tr>
+<tr><td>Coût</td><td>Faible</td><td>Communication</td><td>Gas, stockage, infrastructure blockchain</td></tr></table>
+<p>Mesurez au minimum : durée d'un tour, nombre de transactions et gas consommé par tour, taille des données on-chain, précision sous attaque.</p>
+<h2>Conclusions</h2>
+<ul>
+<li>Quels sont les avantages et limites du FL et du BFL ?</li>
+<li>Comment améliorer la confidentialité du système BFL ? (les mises à jour hors chaîne et les métadonnées on-chain fuient-elles de l'information ? confidentialité différentielle, agrégation sécurisée, chiffrement, réseau permissionné)</li>
+<li>Que garantit réellement la blockchain, et que ne garantit-elle pas ?</li>
+</ul><h2>Modalités de rendu</h2>
+<p>Code, contrats, expérimentations et rapport. <span class="todo">[à compléter : date et dépôt]</span></p>
+</main>
+</body>
+</html>

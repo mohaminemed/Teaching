@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TP4 : Apprentissage fédéré résilient (empoisonnement et défenses)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="top"><a href="index.html">&larr; Sommaire</a></nav>
+<p class="kicker">TP4 · FL robuste</p>
+<h1>TP4 : Apprentissage fédéré résilient (empoisonnement et défenses)</h1>
+
+<h2>Objectifs</h2>
+<ul>
+<li>Comprendre les différences entre apprentissage fédéré et centralisé, et l'architecture d'un système FL.</li>
+<li>Expérimenter le partitionnement <strong>IID</strong> et <strong>non-IID</strong>.</li>
+<li>Implémenter des attaques par empoisonnement (données et modèle).</li>
+<li>Tester des stratégies d'agrégation robustes et mesurer leur impact sur la précision.</li>
+<li>Comparer les performances avec et sans attaque (accuracy, précision, F1-score) et face à un modèle centralisé.</li>
+</ul>
+<h2>Contexte</h2>
+<p>L'apprentissage fédéré est vulnérable aux <strong>attaques par empoisonnement</strong> :</p>
+<ul>
+<li><strong>Empoisonnement des données</strong> : l'attaquant modifie ses données d'entraînement locales.</li>
+<li><strong>Empoisonnement du modèle</strong> : l'attaquant manipule directement la mise à jour envoyée au serveur.</li>
+</ul><h2>Documentation</h2>
+<ul>
+<li><a href="https://flower.ai/docs">Documentation de Flower</a></li>
+<li><a href="https://pytorch.org/tutorials/">Tutoriels PyTorch</a></li>
+<li><a href="https://flower.ai/docs/framework/tutorial-quickstart-pytorch.html">Quickstart PyTorch (Flower)</a></li>
+</ul>
+<h2>Travail à réaliser</h2>
+<h3>1. Système FL sur FashionMNIST</h3>
+<p>Modèle : LeNet (définition dans le <a href="TD_Introduction_FL.html#modeles">TD</a>). Vous pouvez organiser le projet ainsi (les dossiers <code>fl_attacks</code> et le détail des modules sont une proposition) :</p>
+<pre><code>FL-FashionMNIST/
+├── fl_exec.py              # configuration d&#x27;une expérience et lancement
+├── fl_main.py              # boucle FL (entraînement, agrégation, évaluation)
+├── fl_preprocessing/       # chargement de FashionMNIST, partitionnement IID / non-IID
+├── fl_models/
+│   ├── simplecnn.py        # CNN simple
+│   └── lenet.py            # LeNet
+├── fl_training/
+│   ├── __init__.py
+│   ├── fl_train.py         # entraînement côté client
+│   └── fl_aggregation.py   # agrégation côté serveur (FedAvg, Trimmed-Mean, Multi-Krum)
+├── fl_attacks/             # (proposition) Label Flipping, Gauss, Trim
+└── utils/
+    ├── __init__.py
+    ├── metrics.py          # accuracy, précision, F1-score
+    └── helpers.py          # sauvegarde, journalisation</code></pre>
+<p>Implémentez le partitionnement <strong>IID</strong> et <strong>non-IID</strong> (par exemple par distribution de Dirichlet de paramètre &alpha;, où &alpha; petit donne des données très hétérogènes).</p>
+<h3>2. Attaques par empoisonnement</h3>
+<table><tr><th>Attaque</th><th>Type</th><th>Principe</th></tr>
+<tr><td>Label Flipping (LF)</td><td>Données</td><td>Le client malveillant change les étiquettes de ses exemples d'entraînement (par exemple <code>y &rarr; (y+1) mod 10</code>, ou une classe vers une autre) et entraîne normalement.</td></tr>
+<tr><td>Gauss</td><td>Modèle</td><td>Le client malveillant envoie, à la place de sa mise à jour, un vecteur de bruit gaussien (<code>N(0, &sigma;&sup2;)</code>) ou y ajoute un bruit gaussien de forte amplitude.</td></tr>
+<tr><td>Trim</td><td>Modèle</td><td>Attaque de Fang et al. (2020) contre Trimmed-Mean et la médiane : l'attaquant estime, pour chaque paramètre, la direction de variation des mises à jour honnêtes et envoie des valeurs dans la direction <em>opposée</em>, hors de la plage des valeurs honnêtes, afin de survivre au tri.</td></tr></table>
+<h3>3. Défenses</h3>
+<table><tr><th>Défense</th><th>Principe</th><th>Condition</th></tr>
+<tr><td>Trimmed-Mean</td><td>Pour chaque coordonnée, retirer les &beta; plus grandes et &beta; plus petites valeurs, puis moyenner le reste.</td><td>&beta; &ge; nombre de clients malveillants</td></tr>
+<tr><td>Multi-Krum</td><td>Score de chaque mise à jour = somme des distances au carré à ses <em>n&minus;f&minus;2</em> plus proches voisines ; moyenne des <em>m</em> meilleures mises à jour.</td><td><em>n &ge; 2f+3</em> (f clients malveillants)</td></tr></table>
+<p>Comparez-les à la moyenne simple <strong>FedAvg</strong> comme référence.</p>
+<h3>4. Évaluation et comparaison</h3>
+<p>Simulez des scénarios d'attaque (par exemple <strong>1/3 de clients malveillants</strong> : avec Multi-Krum, choisissez alors un nombre de clients suffisant pour respecter <em>n &ge; 2f+3</em>). Remplissez, pour IID et non-IID, une grille d'expériences :</p>
+<table><tr><th></th><th>Sans attaque</th><th>LF</th><th>Gauss</th><th>Trim</th></tr>
+<tr><td>FedAvg</td><td></td><td></td><td></td><td></td></tr>
+<tr><td>Trimmed-Mean</td><td></td><td></td><td></td><td></td></tr>
+<tr><td>Multi-Krum</td><td></td><td></td><td></td><td></td></tr></table>
+<p>Métriques : accuracy, précision et F1-score (moyenne macro sur les 10 classes). Comparez aussi à un modèle <strong>centralisé</strong>. Fixez les graines aléatoires et répétez chaque expérience plusieurs fois pour estimer la variabilité.</p>
+<h3>5. Conclusions</h3>
+<ul>
+<li>Quels sont les avantages et limites du système FL implémenté ?</li>
+<li>Quels autres types d'attaques existent en FL (backdoor, attaques ciblées, Sybil, inférence) ? Les deux défenses implémentées y résistent-elles ?</li>
+<li>Comment améliorer la confidentialité de votre système FL ?</li>
+</ul>
+<h2>Références</h2>
+<ul>
+<li><a href="https://arxiv.org/abs/2012.06337">Lyu et al., <em>Privacy and Robustness in Federated Learning: Attacks and Defenses</em> (survol attaques et défenses)</a></li>
+<li><a href="https://arxiv.org/abs/1911.11815">Fang et al., <em>Local Model Poisoning Attacks to Byzantine-Robust Federated Learning</em>, USENIX Security 2020 (Trim attack)</a></li>
+<li><a href="https://arxiv.org/abs/1703.02757">Blanchard et al., <em>Machine Learning with Adversaries: Byzantine Tolerant Gradient Descent</em>, NeurIPS 2017 (Krum, Multi-Krum)</a></li>
+<li><a href="https://arxiv.org/abs/1803.01498">Yin et al., <em>Byzantine-Robust Distributed Learning: Towards Optimal Statistical Rates</em>, ICML 2018 (Trimmed-Mean, médiane)</a></li>
+</ul><div class="box note">Le lien de « survol » de l'énoncé précédent (arXiv 1912.13445) pointait en réalité vers un article sur l'agrégation robuste par médiane géométrique, pas vers un survol des attaques et défenses ; il est remplacé ci-dessus.</div><h2>Modalités de rendu</h2>
+<p>Code, résultats (tableaux et courbes) et réponses aux questions. <span class="todo">[à compléter : date et dépôt]</span></p>
+</main>
+</body>
+</html>
