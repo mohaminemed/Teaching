@@ -10,9 +10,9 @@ This repository contains **only the material I developed**. All content is writt
 
 | Course | File | Topics |
 |---|---|---|
-| Decentralized identity and access control (D-IAM) | `cours/CoursDIAM_beamer.pdf` | DIDs, Verifiable Credentials, SSI, privacy, access control (RBAC/ABAC), Hyperledger Besu |
-| Introduction to blockchain | `cours/CoursBlockchain_beamer.pdf` | Cryptographic foundations, consensus, smart contracts, security, scalability |
-| Federated learning | `cours/CoursFL_beamer.pdf` | FedAvg, non-IID data, privacy, poisoning and backdoors, robust aggregation, decentralized FL |
+| Decentralized identity and access control (D-IAM) | `cours/DIAM.pdf` | DIDs, Verifiable Credentials, SSI, privacy, access control (RBAC/ABAC), Hyperledger Besu |
+| Introduction to blockchain | `cours/Blockchain.pdf` | Cryptographic foundations, consensus, smart contracts, security, scalability |
+| Federated learning | `cours/FL.pdf` | FedAvg, non-IID data, privacy, poisoning and backdoors, robust aggregation, decentralized FL |
 
 Each course is organized in 10 modules and ends with exercises, discussion questions and references.
 
@@ -36,9 +36,9 @@ Open `TPs/index.html` in a browser for the overview. Suggested order: TP1 → TP
 .
 ├── README.md
 ├── courses/
-│   ├── CoursDIAM_beamer.tex
-│   ├── CoursBlockchain_beamer.tex
-│   └── CoursFL_beamer.tex
+│   ├── DIAM.pdf
+│   ├── Blockchain.pdf
+│   └── FL.pdf
 └── TPs/
     ├── index.html
     ├── style.css
