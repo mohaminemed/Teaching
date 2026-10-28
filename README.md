@@ -28,7 +28,7 @@ Each course is organized in 10 modules and ends with exercises, discussion quest
 | TP5 | Blockchain-based federated learning (BFL) |
 | Project | FL and BFL on FashionMNIST |
 
-Open `labs/index.html` in a browser for the overview. Suggested order: TP1 → TP2 → TP3 and TD → TP4 → TP5 → Project.
+Open `TPs/index.html` in a browser for the overview. Suggested order: TP1 → TP2 → TP3 and TD → TP4 → TP5 → Project.
 
 ## Repository structure
 
@@ -39,7 +39,7 @@ Open `labs/index.html` in a browser for the overview. Suggested order: TP1 → T
 │   ├── CoursDIAM_beamer.tex
 │   ├── CoursBlockchain_beamer.tex
 │   └── CoursFL_beamer.tex
-└── labs/
+└── TPs/
     ├── index.html
     ├── style.css
     ├── TP1_Introduction_Blockchain.html
