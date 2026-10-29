@@ -6,7 +6,7 @@ This repository contains **only the material I developed**. All content is writt
 
 ## Contents
 
-### Courses (LaTeX Beamer)
+### Courses
 
 | Course | File | Topics |
 |---|---|---|
